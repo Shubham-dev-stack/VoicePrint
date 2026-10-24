@@ -1,6 +1,8 @@
 import React from 'react';
-import { Play, Clock, Trash2, ArrowUpRight, MessageSquare } from 'lucide-react';
+import { Play, Clock, Trash2, ArrowUpRight, MessageSquare, Download } from 'lucide-react';
 import { RecentMessage } from '../../types';
+import { EMOTION_OPTIONS } from '../../data/mockData';
+import { audioEngine } from '../../services/audioService';
 
 interface RecentMessagesListProps {
   messages: RecentMessage[];
@@ -32,6 +34,18 @@ export const RecentMessagesList: React.FC<RecentMessagesListProps> = ({
     }
   };
 
+  const getEmotionBadge = (emotion?: string) => {
+    if (!emotion) return null;
+    const emObj = EMOTION_OPTIONS.find((e) => e.id === emotion);
+    if (!emObj) return null;
+    return (
+      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 flex items-center gap-1">
+        <span>{emObj.emoji}</span>
+        <span className="capitalize">{emObj.label}</span>
+      </span>
+    );
+  };
+
   return (
     <div className="bg-white rounded-3xl border border-surface-border shadow-card p-5 sm:p-7">
       <div className="flex items-center justify-between pb-4 mb-4 border-b border-surface-border">
@@ -60,7 +74,7 @@ export const RecentMessagesList: React.FC<RecentMessagesListProps> = ({
           </div>
           <p className="text-sm font-semibold text-navy-700">No voice messages generated yet</p>
           <p className="text-xs text-navy-400 mt-1 max-w-xs">
-            Generate your first message using the composer above to build your conversation history.
+            Generate your first message using the Emotion Studio above to build your conversation history.
           </p>
         </div>
       ) : (
@@ -78,6 +92,7 @@ export const RecentMessagesList: React.FC<RecentMessagesListProps> = ({
                     <span className="text-xs font-semibold text-brand-800 bg-brand-50 px-2 py-0.5 rounded-md border border-brand-100">
                       {item.voiceName}
                     </span>
+                    {getEmotionBadge(item.emotion)}
                     {item.isFishAudio ? (
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -99,7 +114,7 @@ export const RecentMessagesList: React.FC<RecentMessagesListProps> = ({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+                <div className="flex items-center gap-1.5 self-end sm:self-center flex-shrink-0">
                   {/* Replay button */}
                   <button
                     onClick={() => onPlayMessage(item)}
@@ -122,6 +137,17 @@ export const RecentMessagesList: React.FC<RecentMessagesListProps> = ({
                       </>
                     )}
                   </button>
+
+                  {/* Download MP3 button if audioUrl available */}
+                  {item.audioUrl && (
+                    <button
+                      onClick={() => audioEngine.downloadAudio(item.audioUrl!, `voiceprint-${item.id}.mp3`)}
+                      className="p-2 rounded-xl text-navy-500 hover:text-brand-700 hover:bg-surface-warm border border-transparent hover:border-surface-border transition-colors"
+                      title="Download MP3"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  )}
 
                   {/* Load into composer */}
                   <button

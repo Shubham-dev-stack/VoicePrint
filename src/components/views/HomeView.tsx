@@ -8,8 +8,9 @@ import {
 } from 'lucide-react';
 import { MessageComposer } from '../composer/MessageComposer';
 import { AudioPlayer } from '../audio/AudioPlayer';
+import { VoiceOrb } from '../audio/VoiceOrb';
 import { RecentMessagesList } from '../messages/RecentMessagesList';
-import { Voice, Language, QuickPhrase, RecentMessage } from '../../types';
+import { Voice, Language, QuickPhrase, RecentMessage, EmotionType, EmotionIntensity, MoodPreset } from '../../types';
 
 interface HomeViewProps {
   composerText: string;
@@ -20,9 +21,15 @@ interface HomeViewProps {
   onVoiceChange: (voice: Voice) => void;
   availableVoices: Voice[];
   quickPhrases: QuickPhrase[];
+  selectedEmotion: EmotionType;
+  onEmotionChange: (emotion: EmotionType) => void;
+  intensity: EmotionIntensity;
+  onIntensityChange: (intensity: EmotionIntensity) => void;
+  onSelectPreset: (preset: MoodPreset) => void;
   onGenerateVoice: () => void;
   isGenerating: boolean;
   onSaveQuickPhrase: (phraseText: string, lang: Language) => void;
+  onOpenComparison?: () => void;
   
   // Audio state
   isPlaying: boolean;
@@ -31,6 +38,7 @@ interface HomeViewProps {
   progress: number;
   playbackRate: number;
   currentAudioText: string;
+  currentAudioUrl?: string;
   isFishAudio?: boolean;
   fishAudioModel?: string;
   onPlayPause: () => void;
@@ -56,9 +64,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onVoiceChange,
   availableVoices,
   quickPhrases,
+  selectedEmotion,
+  onEmotionChange,
+  intensity,
+  onIntensityChange,
+  onSelectPreset,
   onGenerateVoice,
   isGenerating,
   onSaveQuickPhrase,
+  onOpenComparison,
 
   isPlaying,
   currentTime,
@@ -66,6 +80,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   progress,
   playbackRate,
   currentAudioText,
+  currentAudioUrl,
   isFishAudio = false,
   fishAudioModel = 's2.1-pro-free',
   onPlayPause,
@@ -80,49 +95,72 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onClearAllRecentMessages,
   currentlyPlayingMessageId
 }) => {
+  // Determine Voice Orb State
+  const orbState: 'idle' | 'generating' | 'speaking' | 'paused' = isGenerating
+    ? 'generating'
+    : isPlaying
+    ? 'speaking'
+    : currentTime > 0 && currentTime < duration
+    ? 'paused'
+    : 'idle';
+
   return (
     <div className="space-y-6 sm:space-y-8 pb-12">
-      {/* Main Greeting Banner */}
+      {/* 1. Main Greeting Banner with Voice Orb Centerpiece */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-navy-900 via-navy-950 to-brand-950 text-white p-6 sm:p-9 shadow-xl border border-navy-800">
         {/* Subtle decorative circles */}
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 right-1/4 -mb-16 w-48 h-48 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-72 h-72 bg-brand-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 -mb-16 w-56 h-56 bg-indigo-500/15 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-brand-200 border border-white/10 text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-brand-300" />
-            <span>Voice Synthesis Demo Studio</span>
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="max-w-xl text-center md:text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-brand-200 border border-white/10 text-xs font-semibold mb-3">
+              <Sparkles className="w-3.5 h-3.5 text-brand-300 animate-pulse" />
+              <span>Emotion-Driven Neural Voice Studio 2.0</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
+              Your voice. <span className="bg-gradient-to-r from-brand-300 via-purple-200 to-white bg-clip-text text-transparent">Your emotions.</span>
+            </h1>
+
+            <p className="text-sm sm:text-base text-navy-200 leading-relaxed font-normal">
+              Type anything in English, Hindi, or conversational Hinglish and experience natural expressive speech powered by the Fish Audio S2 API.
+            </p>
+
+            {/* Feature Highlights Pills */}
+            <div className="mt-5 flex flex-wrap items-center justify-center md:justify-start gap-2.5 text-xs text-navy-300">
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Zap className="w-3 h-3 text-amber-400" />
+                <span>10 Emotion Presets</span>
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Languages className="w-3 h-3 text-emerald-400" />
+                <span>Multilingual (EN, HI, Hinglish)</span>
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Lock className="w-3 h-3 text-indigo-400" />
+                <span>Fish Audio S2 Model ({fishAudioModel})</span>
+              </span>
+            </div>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white mb-2 leading-tight">
-            Your voice. <span className="bg-gradient-to-r from-brand-300 via-purple-200 to-white bg-clip-text text-transparent">Your words.</span>
-          </h1>
-
-          <p className="text-sm sm:text-base text-navy-200 leading-relaxed font-normal">
-            Type anything in English, Hindi, or conversational Hinglish and hear a browser demo preview in your selected voice persona.
-          </p>
-
-          {/* Feature Highlights Pills */}
-          <div className="mt-5 flex flex-wrap items-center gap-2.5 text-xs text-navy-300">
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-              <Zap className="w-3 h-3 text-amber-400" />
-              <span>Browser Speech Demo</span>
-            </span>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-              <Languages className="w-3 h-3 text-emerald-400" />
-              <span>Multilingual (EN, HI, Hinglish)</span>
-            </span>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-              <Lock className="w-3 h-3 text-indigo-400" />
-              <span>Fish Audio Hook Prepared</span>
-            </span>
+          {/* Voice Orb Dynamic Centerpiece */}
+          <div className="flex-shrink-0 flex flex-col items-center">
+            <VoiceOrb
+              state={orbState}
+              progress={progress}
+              emotion={selectedEmotion}
+              voiceName={selectedVoice.name}
+              onClick={onPlayPause}
+              size="md"
+            />
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Composer & Audio Preview */}
+      {/* 2. Main Grid: Composer & Audio Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
-        {/* Left Column: Composer (7 cols) */}
+        {/* Left Column: Emotion Studio & Composer (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
           <MessageComposer
             text={composerText}
@@ -133,9 +171,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onVoiceChange={onVoiceChange}
             availableVoices={availableVoices}
             quickPhrases={quickPhrases}
+            selectedEmotion={selectedEmotion}
+            onEmotionChange={onEmotionChange}
+            intensity={intensity}
+            onIntensityChange={onIntensityChange}
+            onSelectPreset={onSelectPreset}
             onGenerate={onGenerateVoice}
             isGenerating={isGenerating}
             onSaveQuickPhrase={onSaveQuickPhrase}
+            onOpenComparison={onOpenComparison}
           />
         </div>
 
@@ -150,8 +194,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             currentText={currentAudioText || composerText}
             voice={selectedVoice}
             language={selectedLanguage}
+            audioUrl={currentAudioUrl}
             isFishAudio={isFishAudio}
             fishAudioModel={fishAudioModel}
+            emotion={selectedEmotion}
+            intensity={intensity}
             onPlayPause={onPlayPause}
             onRestart={onRestart}
             onSpeedChange={onSpeedChange}
@@ -173,7 +220,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Recent Messages Section */}
+      {/* 3. Recent Messages Section */}
       <div className="pt-2">
         <RecentMessagesList
           messages={recentMessages}

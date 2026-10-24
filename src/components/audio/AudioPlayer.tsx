@@ -1,7 +1,19 @@
 import React from 'react';
-import { Play, Pause, RotateCcw, Volume2, Copy, Check, Info, CheckCircle2 } from 'lucide-react';
+import { 
+  Play, 
+  Pause, 
+  RotateCcw, 
+  Volume2, 
+  Copy, 
+  Check, 
+  Info, 
+  CheckCircle2, 
+  Download
+} from 'lucide-react';
 import { AudioVisualizer } from './AudioVisualizer';
-import { Voice, Language } from '../../types';
+import { Voice, Language, EmotionType, EmotionIntensity } from '../../types';
+import { EMOTION_OPTIONS } from '../../data/mockData';
+import { audioEngine } from '../../services/audioService';
 
 interface AudioPlayerProps {
   isPlaying: boolean;
@@ -12,8 +24,11 @@ interface AudioPlayerProps {
   currentText: string;
   voice: Voice;
   language: Language;
+  audioUrl?: string;
   isFishAudio?: boolean;
   fishAudioModel?: string;
+  emotion?: EmotionType;
+  intensity?: EmotionIntensity;
   onPlayPause: () => void;
   onRestart: () => void;
   onSpeedChange: (speed: number) => void;
@@ -29,8 +44,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   currentText,
   voice,
   language,
+  audioUrl,
   isFishAudio = false,
   fishAudioModel = 's2.1-pro-free',
+  emotion = 'happy',
+  intensity = 'balanced',
   onPlayPause,
   onRestart,
   onSpeedChange,
@@ -51,6 +69,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleDownload = () => {
+    if (!audioUrl) return;
+    const cleanVoice = voice.name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    audioEngine.downloadAudio(audioUrl, `voiceprint-${cleanVoice}-${emotion}.mp3`);
+  };
+
   const getLanguageLabel = (lang: Language) => {
     switch (lang) {
       case 'hi': return 'Hindi (हिंदी)';
@@ -59,6 +83,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
+  const emotionObj = EMOTION_OPTIONS.find((e) => e.id === emotion) || EMOTION_OPTIONS[0];
   const speedOptions = [0.8, 1.0, 1.25, 1.5];
 
   return (
@@ -71,7 +96,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {/* Header Info */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${voice.color} flex items-center justify-center text-xl shadow-sm text-white`}>
+          <div className={`w-10 h-10 rounded-2xl bg-gradient-to-tr ${voice.color} flex items-center justify-center text-xl shadow-sm text-white flex-shrink-0`}>
             {voice.avatar}
           </div>
           <div>
@@ -85,18 +110,30 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </div>
         </div>
 
-        {/* Engine Status Badge */}
-        {isFishAudio ? (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>⚡ Real Fish Audio AI Stream</span>
+        {/* Emotion & Engine Status Badges */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Active Emotion Badge */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-warm border border-surface-border text-xs font-semibold text-navy-800 shadow-2xs">
+            <span>{emotionObj.emoji}</span>
+            <span>{emotionObj.label}</span>
+            <span className="text-[10px] uppercase font-bold text-brand-600 bg-brand-50 px-1.5 py-0.2 rounded">
+              {intensity}
+            </span>
           </div>
-        ) : (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50/90 text-amber-800 border border-amber-200 text-xs font-medium shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-amber-500" />
-            <span>Browser Demo Audio (Fallback)</span>
-          </div>
-        )}
+
+          {/* Engine Status Badge */}
+          {isFishAudio ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>⚡ Real Fish Audio AI</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50/90 text-amber-800 border border-amber-200 text-xs font-medium shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>Browser Speech Demo</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Current Spoken Message Snippet */}
@@ -161,7 +198,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       {/* Controls Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-        {/* Play / Restart Controls */}
+        {/* Play / Restart / Download Controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={onPlayPause}
@@ -187,6 +224,18 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             <RotateCcw className="w-4 h-4" />
           </button>
+
+          {/* Download MP3 Button (Real Fish Audio streams) */}
+          {audioUrl && (
+            <button
+              onClick={handleDownload}
+              className="h-10 px-3 rounded-xl border border-brand-200 bg-brand-50 hover:bg-brand-100 text-brand-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
+              title="Download generated MP3 file"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download MP3</span>
+            </button>
+          )}
 
           <div className="hidden sm:flex items-center gap-1.5 ml-2 text-xs text-navy-500">
             <Volume2 className="w-4 h-4 text-brand-600" />
@@ -215,22 +264,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
       {/* Engine Status Notification Box */}
       {isFishAudio ? (
-        <div className="mt-5 p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-2.5 text-xs text-navy-700">
+        <div className="mt-5 p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-start gap-2.5 text-xs text-navy-700">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold text-emerald-900">Fish Audio Synthesis Active: </span>
+            <span className="font-bold text-emerald-900">Fish Audio Emotion Synthesis Active: </span>
             <span>
-              Generated in real-time by the official <strong>Fish Audio API</strong> (Model: <code className="font-mono font-semibold text-emerald-800">{fishAudioModel}</code>) with natural neural voice inflection.
+              Generated in real-time by official <strong>Fish Audio API</strong> (Model: <code className="font-mono font-semibold text-emerald-800">{fishAudioModel}</code>) with natural <strong className="text-emerald-950 font-semibold">{emotionObj.label}</strong> ({intensity}) emotional modulation.
             </span>
           </div>
         </div>
       ) : (
-        <div className="mt-5 p-3 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-start gap-2.5 text-xs text-navy-700">
+        <div className="mt-5 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 flex items-start gap-2.5 text-xs text-navy-700">
           <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
           <div>
-            <span className="font-bold text-amber-900">Audio Preview: </span>
+            <span className="font-bold text-amber-900">Browser Audio Preview: </span>
             <span>
-              Rendered using local browser speech synthesis. Connect to Fish Audio backend to stream high-fidelity zero-shot voices.
+              Rendered using local browser speech synthesis with emotional pitch/cadence emulation. Connect your Fish Audio API key in Settings to stream authentic neural voices.
             </span>
           </div>
         </div>

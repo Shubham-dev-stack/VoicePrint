@@ -10,6 +10,9 @@ export interface FishAudioSynthesisRequest {
   text: string;
   referenceId?: string;
   voiceId?: string;
+  emotion?: string;
+  intensity?: string;
+  speed?: number;
 }
 
 export interface FishAudioSynthesisResult {
@@ -18,6 +21,8 @@ export interface FishAudioSynthesisResult {
   audioBlob?: Blob;
   isRealFishAudio: boolean;
   model?: string;
+  emotion?: string;
+  intensity?: string;
   error?: string;
   code?: string;
   details?: string;
@@ -89,7 +94,10 @@ class FishAudioService {
         },
         body: JSON.stringify({
           text: request.text,
-          reference_id: request.referenceId || undefined
+          reference_id: request.referenceId || undefined,
+          emotion: request.emotion || undefined,
+          intensity: request.intensity || undefined,
+          speed: request.speed || undefined
         })
       });
 
@@ -131,13 +139,17 @@ class FishAudioService {
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       const model = response.headers.get('x-fish-audio-model') || 's2.1-pro-free';
+      const emotion = response.headers.get('x-voiceprint-emotion') || request.emotion;
+      const intensity = response.headers.get('x-voiceprint-intensity') || request.intensity;
 
       return {
         success: true,
         isRealFishAudio: true,
         audioBlob,
         audioUrl,
-        model
+        model,
+        emotion,
+        intensity
       };
     } catch (err) {
       console.error('[FishAudioService] Network or server error:', err);

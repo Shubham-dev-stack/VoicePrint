@@ -133,8 +133,41 @@ app.post('/api/tts', async (req: Request, res: Response) => {
     });
   }
 
+/**
+ * Helper: Map emotion and intensity into natural language prompt tags for Fish Audio S2
+ */
+function formatEmotionTag(emotion?: string, intensity?: string): string {
+  if (!emotion) return '';
+  const level = (intensity || 'balanced').toLowerCase();
+
+  switch (emotion.toLowerCase()) {
+    case 'happy':
+      return level === 'expressive' ? '[joyful, laughing, very happy]' : level === 'subtle' ? '[subtle smile, lighthearted]' : '[happy, cheerful]';
+    case 'calm':
+      return level === 'expressive' ? '[deeply calm, soothing, meditative]' : level === 'subtle' ? '[relaxed, tranquil]' : '[calm, peaceful]';
+    case 'empathetic':
+      return level === 'expressive' ? '[deeply empathetic, compassionate, heartfelt]' : level === 'subtle' ? '[warm, gentle]' : '[empathetic, caring]';
+    case 'excited':
+      return level === 'expressive' ? '[ecstatic, thrilled, high energy]' : level === 'subtle' ? '[eager, enthusiastic]' : '[excited, animated]';
+    case 'confident':
+      return level === 'expressive' ? '[commanding, powerful, bold]' : level === 'subtle' ? '[assured, steady]' : '[confident, resolute]';
+    case 'professional':
+      return level === 'expressive' ? '[executive, sharp, authoritative]' : level === 'subtle' ? '[polite, measured]' : '[professional, articulate]';
+    case 'storytelling':
+      return level === 'expressive' ? '[epic theatrical narration, dynamic cadence]' : level === 'subtle' ? '[narrative flow]' : '[storyteller, engaging voice]';
+    case 'sad':
+      return level === 'expressive' ? '[tearful, heartbroken, sorrowful]' : level === 'subtle' ? '[melancholic, subdued]' : '[sad, emotional]';
+    case 'dramatic':
+      return level === 'expressive' ? '[high drama, intense suspense, breathtaking]' : level === 'subtle' ? '[poised, theatrical]' : '[dramatic, compelling]';
+    case 'friendly':
+      return level === 'expressive' ? '[super friendly, welcoming, vibrant warmth]' : level === 'subtle' ? '[cordial, pleasant]' : '[friendly, approachable]';
+    default:
+      return `[${emotion}]`;
+  }
+}
+
   // 2. Input Validation
-  const { text, reference_id } = req.body || {};
+  const { text, reference_id, emotion, intensity } = req.body || {};
 
   if (!text || typeof text !== 'string') {
     return res.status(400).json({
@@ -165,8 +198,12 @@ app.post('/api/tts', async (req: Request, res: Response) => {
   }
 
   // 3. Prepare Upstream Request to Fish Audio
+  // Inject natural language emotion instruction tag if emotion provided
+  const emotionTag = formatEmotionTag(emotion, intensity);
+  const upstreamText = emotionTag ? `${emotionTag} ${trimmedText}` : trimmedText;
+
   const upstreamPayload: { text: string; format: string; reference_id?: string } = {
-    text: trimmedText,
+    text: upstreamText,
     format: 'mp3'
   };
 
@@ -175,7 +212,7 @@ app.post('/api/tts', async (req: Request, res: Response) => {
   }
 
   try {
-    console.log(`[Backend] Generating speech (${trimmedText.length} chars, model: ${model}, ref: ${validReferenceId || 'default'})...`);
+    console.log(`[Backend] Generating speech (${trimmedText.length} chars, emotion: ${emotion || 'neutral'}/${intensity || 'balanced'}, model: ${model}, ref: ${validReferenceId || 'default'})...`);
 
     const fishAudioResponse = await fetch('https://api.fish.audio/v1/tts', {
       method: 'POST',
@@ -241,6 +278,8 @@ app.post('/api/tts', async (req: Request, res: Response) => {
       'Content-Type': 'audio/mpeg',
       'Content-Length': buffer.byteLength.toString(),
       'X-Fish-Audio-Model': model,
+      'X-Voiceprint-Emotion': emotion || 'neutral',
+      'X-Voiceprint-Intensity': intensity || 'balanced',
       'Cache-Control': 'no-cache'
     });
 

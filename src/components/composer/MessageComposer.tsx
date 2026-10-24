@@ -7,11 +7,15 @@ import {
   AlertCircle, 
   Globe, 
   Mic2,
-  Flame
+  Flame,
+  SlidersHorizontal,
+  ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Voice, Language, QuickPhrase } from '../../types';
+import { Voice, Language, QuickPhrase, EmotionType, EmotionIntensity, MoodPreset } from '../../types';
 import { LANGUAGE_OPTIONS } from '../../data/mockData';
+import { EmotionStudio } from './EmotionStudio';
+import { MoodPresetsBar } from './MoodPresetsBar';
 
 interface MessageComposerProps {
   text: string;
@@ -22,9 +26,15 @@ interface MessageComposerProps {
   onVoiceChange: (voice: Voice) => void;
   availableVoices: Voice[];
   quickPhrases: QuickPhrase[];
+  selectedEmotion: EmotionType;
+  onEmotionChange: (emotion: EmotionType) => void;
+  intensity: EmotionIntensity;
+  onIntensityChange: (intensity: EmotionIntensity) => void;
+  onSelectPreset: (preset: MoodPreset) => void;
   onGenerate: () => void;
   isGenerating: boolean;
   onSaveQuickPhrase: (phraseText: string, lang: Language) => void;
+  onOpenComparison?: () => void;
 }
 
 export const MessageComposer: React.FC<MessageComposerProps> = ({
@@ -36,13 +46,19 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   onVoiceChange,
   availableVoices,
   quickPhrases,
+  selectedEmotion,
+  onEmotionChange,
+  intensity,
+  onIntensityChange,
+  onSelectPreset,
   onGenerate,
   isGenerating,
-  onSaveQuickPhrase
+  onSaveQuickPhrase,
+  onOpenComparison
 }) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const MAX_CHARS = 500;
+  const MAX_CHARS = 1000;
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
@@ -75,13 +91,13 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
     }
     setErrorMessage(null);
     
-    // Trigger confetti burst for celebratory hackathon UX
+    // Trigger celebratory confetti burst
     try {
       confetti({
         particleCount: 45,
         spread: 60,
         origin: { y: 0.75 },
-        colors: ['#7C3AED', '#945EF4', '#C084FC', '#38BDF8']
+        colors: ['#6845FF', '#8B5CF6', '#C084FC', '#38BDF8', '#F59E0B']
       });
     } catch {
       // non-critical
@@ -98,9 +114,18 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
   const topQuickPhrases = quickPhrases.slice(0, 5);
 
   return (
-    <div className="bg-white rounded-3xl border border-surface-border shadow-card p-5 sm:p-7 relative transition-all">
-      {/* Top Composer Control Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-surface-border">
+    <div className="bg-white rounded-3xl border border-surface-border shadow-card p-5 sm:p-7 relative transition-all space-y-6">
+      {/* 1. Mood & Context Presets 1-Click Bar */}
+      <MoodPresetsBar
+        onSelectPreset={onSelectPreset}
+        selectedEmotion={selectedEmotion}
+        selectedIntensity={intensity}
+        selectedVoiceId={selectedVoice.id}
+        availableVoices={availableVoices}
+      />
+
+      {/* 2. Top Composer Control Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-border">
         {/* Language selector */}
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-brand-600 flex-shrink-0" />
@@ -148,20 +173,20 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
             {savedSuccess ? (
               <>
                 <Check className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Saved to Quick Phrases!</span>
+                <span>Saved!</span>
               </>
             ) : (
               <>
                 <Bookmark className="w-3.5 h-3.5 text-brand-600" />
-                <span>Save as Quick Phrase</span>
+                <span>Save Quick Phrase</span>
               </>
             )}
           </button>
         </div>
       </div>
 
-      {/* Main Textarea */}
-      <div className="relative mb-3">
+      {/* 3. Main Textarea */}
+      <div className="relative">
         <textarea
           value={text}
           onChange={handleTextChange}
@@ -182,7 +207,7 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         <div className="flex items-center justify-between text-xs text-navy-400 px-1 mt-1">
           <div className="flex items-center gap-2">
             {words > 0 && (
-              <span className="text-navy-500">
+              <span className="text-navy-500 font-medium">
                 {words} {words === 1 ? 'word' : 'words'} • ~{estimatedSeconds}s estimated
               </span>
             )}
@@ -204,8 +229,16 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         )}
       </div>
 
-      {/* Quick Phrase Buttons strip */}
-      <div className="mb-6">
+      {/* 4. Emotion Studio Controls (10 selectable emotions + intensity) */}
+      <EmotionStudio
+        selectedEmotion={selectedEmotion}
+        onEmotionChange={onEmotionChange}
+        intensity={intensity}
+        onIntensityChange={onIntensityChange}
+      />
+
+      {/* 5. Quick Phrase Buttons strip */}
+      <div>
         <div className="flex items-center gap-1.5 mb-2">
           <Flame className="w-3.5 h-3.5 text-brand-600" />
           <span className="text-xs font-semibold text-navy-600">Quick Phrases:</span>
@@ -226,13 +259,13 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
       </div>
 
-      {/* Voice Selector Cards */}
-      <div className="mb-6">
+      {/* 6. Active Voice Selector Cards Row */}
+      <div>
         <div className="flex items-center justify-between mb-2.5">
           <div className="flex items-center gap-2">
             <Mic2 className="w-4 h-4 text-brand-600" />
             <span className="text-xs font-semibold text-navy-700 uppercase tracking-wider">
-              Select Voice Model ({availableVoices.length})
+              Selected Vocal Persona
             </span>
           </div>
           <span className="text-xs text-brand-700 font-medium">
@@ -240,7 +273,6 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
           </span>
         </div>
 
-        {/* Scrollable voice cards row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
           {availableVoices.slice(0, 4).map((voice) => {
             const isSelected = selectedVoice.id === voice.id;
@@ -281,31 +313,48 @@ export const MessageComposer: React.FC<MessageComposerProps> = ({
         </div>
       </div>
 
-      {/* Prominent Generate Button */}
-      <button
-        onClick={handleGenerateClick}
-        disabled={isGenerating}
-        className={`w-full py-4 px-6 rounded-2xl font-bold text-base sm:text-lg flex items-center justify-center gap-3 transition-all duration-300 shadow-md ${
-          isGenerating
-            ? 'bg-brand-400 text-white cursor-wait animate-pulse'
-            : 'bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-700 hover:from-brand-500 hover:to-indigo-600 text-white shadow-glow hover:shadow-card-hover active:scale-[0.99]'
-        }`}
-      >
-        {isGenerating ? (
-          <>
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            <span>Generating Voiceprint Demo Audio...</span>
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5 fill-current" />
-            <span>Generate Voice</span>
-            <span className="text-xs font-normal opacity-80 ml-1 py-0.5 px-2 rounded-full bg-white/20">
-              Demo Preview
-            </span>
-          </>
+      {/* 7. Action Buttons Bar (Generate Voice & A/B Compare) */}
+      <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+        <button
+          type="button"
+          onClick={handleGenerateClick}
+          disabled={isGenerating}
+          className={`flex-1 w-full py-4 px-6 rounded-2xl font-bold text-base sm:text-lg flex items-center justify-center gap-3 transition-all duration-300 shadow-md ${
+            isGenerating
+              ? 'bg-brand-400 text-white cursor-wait animate-pulse'
+              : 'bg-gradient-to-r from-brand-600 via-brand-700 to-indigo-700 hover:from-brand-500 hover:to-indigo-600 text-white shadow-glow hover:shadow-card-hover active:scale-[0.99]'
+          }`}
+        >
+          {isGenerating ? (
+            <>
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>Synthesizing Voiceprint Stream...</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 fill-current" />
+              <span>Generate Voice</span>
+              <span className="text-xs font-normal opacity-90 py-0.5 px-2 rounded-full bg-white/20">
+                Emotion-Aware
+              </span>
+            </>
+          )}
+        </button>
+
+        {onOpenComparison && (
+          <button
+            type="button"
+            onClick={onOpenComparison}
+            disabled={!text.trim()}
+            className="w-full sm:w-auto px-5 py-4 rounded-2xl border border-brand-200 hover:border-brand-400 bg-brand-50/60 hover:bg-brand-100/70 text-brand-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+            title="A/B Benchmark two voices or emotion settings"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-brand-600" />
+            <span>A/B Comparison</span>
+            <ChevronRight className="w-3.5 h-3.5 text-brand-400" />
+          </button>
         )}
-      </button>
+      </div>
     </div>
   );
 };

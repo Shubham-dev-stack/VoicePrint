@@ -71,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   Voiceprint
                 </h1>
                 <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-md bg-brand-100 text-brand-800">
-                  v1.0
+                  v2.0
                 </span>
               </div>
               <p className="text-xs font-medium text-brand-600 tracking-wide">

@@ -1,5 +1,42 @@
 export type Language = 'en' | 'hi' | 'hinglish';
 
+export type EmotionType = 
+  | 'happy' 
+  | 'calm' 
+  | 'empathetic' 
+  | 'excited' 
+  | 'confident' 
+  | 'professional' 
+  | 'storytelling' 
+  | 'sad' 
+  | 'dramatic' 
+  | 'friendly';
+
+export type EmotionIntensity = 'subtle' | 'balanced' | 'expressive';
+
+export interface EmotionOption {
+  id: EmotionType;
+  label: string;
+  emoji: string;
+  tag: string;
+  description: string;
+  color: string;
+  accentColor: string;
+  badgeBg: string;
+  badgeBorder: string;
+}
+
+export interface MoodPreset {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  emotion: EmotionType;
+  intensity: EmotionIntensity;
+  recommendedVoiceId: string;
+  sampleText: string;
+}
+
 export interface Voice {
   id: string;
   fishAudioReferenceId?: string; // Verified Fish Audio model ID from https://api.fish.audio/model
@@ -15,13 +52,25 @@ export interface Voice {
   isCustom?: boolean;
   sampleAudioText: string;
   tags: string[];
+  isFavorite?: boolean;
 }
+
+export type QuickPhraseCategory = 
+  | 'Greetings' 
+  | 'Daily Conversation' 
+  | 'Work & Professional' 
+  | 'Thank You' 
+  | 'Reassurance'
+  | 'General'
+  | 'Hindi & Hinglish'
+  | 'Assistance'
+  | 'Work';
 
 export interface QuickPhrase {
   id: string;
   text: string;
   language: Language;
-  category: 'General' | 'Hindi & Hinglish' | 'Assistance' | 'Work';
+  category: QuickPhraseCategory;
   isFavorite: boolean;
   usageCount: number;
 }
@@ -37,6 +86,9 @@ export interface RecentMessage {
   audioUrl?: string; // Real MP3 blob URL from Fish Audio
   isFishAudio?: boolean;
   modelUsed?: string;
+  emotion?: EmotionType;
+  intensity?: EmotionIntensity;
+  isFavorite?: boolean;
 }
 
 export interface UserVoiceProfile {
@@ -50,6 +102,7 @@ export interface UserVoiceProfile {
   stability: number; // 0 to 100
   referenceAudioName?: string;
   createdAt: string;
+  recordedBlobUrl?: string;
 }
 
 export interface AudioPlaybackState {
@@ -61,6 +114,22 @@ export interface AudioPlaybackState {
   currentVoiceId: string;
   currentLanguage: Language;
   isFishAudio: boolean;
+  currentEmotion?: EmotionType;
+}
+
+export interface VoiceComparisonItem {
+  id: string;
+  label: string; // "Option A" vs "Option B"
+  voiceId: string;
+  voiceName: string;
+  emotion: EmotionType;
+  intensity: EmotionIntensity;
+  audioUrl?: string;
+  duration?: number;
+  isLoading?: boolean;
+  error?: string;
+  isFishAudio?: boolean;
+  modelUsed?: string;
 }
 
 export type ActiveTab = 'home' | 'my-voice' | 'quick-phrases' | 'voice-library' | 'settings';

@@ -13,6 +13,8 @@ export interface SynthesizerOptions {
   audioUrl?: string; // When provided, plays real MP3 audio from Fish Audio
   rate?: number;
   pitch?: number;
+  emotion?: string;
+  intensity?: string;
   onProgress?: (progress: number, currentTime: number, duration: number) => void;
   onStart?: (duration: number) => void;
   onEnd?: () => void;
@@ -50,7 +52,7 @@ class AudioEngine {
   public play(options: SynthesizerOptions): void {
     this.stop();
 
-    const { text, language, audioUrl, rate = 1.0, pitch = 1.0, onProgress, onStart, onEnd, onError } = options;
+    const { text, language, audioUrl, rate = 1.0, pitch = 1.0, emotion, intensity, onProgress, onStart, onEnd, onError } = options;
     this.elapsedBeforePause = 0;
     this.isPaused = false;
     this.isCurrentlyPlaying = true;
@@ -89,7 +91,7 @@ class AudioEngine {
           this.cleanup();
           if (onError) onError(e);
           // Fallback to speech synthesis if real audio fails
-          this.playSpeechSynthesis(text, language, rate, pitch, onProgress, onStart, onEnd);
+          this.playSpeechSynthesis(text, language, rate, pitch, emotion, intensity, onProgress, onStart, onEnd);
         };
 
         audio.play().catch((err) => {
@@ -104,7 +106,7 @@ class AudioEngine {
     }
 
     // 2. Fallback to Browser Speech Synthesis (Demo Engine)
-    this.playSpeechSynthesis(text, language, rate, pitch, onProgress, onStart, onEnd);
+    this.playSpeechSynthesis(text, language, rate, pitch, emotion, intensity, onProgress, onStart, onEnd);
   }
 
   private playSpeechSynthesis(
@@ -112,11 +114,58 @@ class AudioEngine {
     language: 'en' | 'hi' | 'hinglish',
     rate: number,
     pitch: number,
+    emotion?: string,
+    intensity?: string,
     onProgress?: (progress: number, currentTime: number, duration: number) => void,
     onStart?: (duration: number) => void,
     onEnd?: () => void
   ) {
-    this.estimatedDuration = this.calculateDuration(text, rate);
+    // Dynamic emotion simulation for browser demo fallback
+    let adjustedPitch = pitch;
+    let adjustedRate = rate;
+
+    if (emotion) {
+      const isExp = intensity === 'expressive';
+      const isSub = intensity === 'subtle';
+
+      switch (emotion) {
+        case 'happy':
+        case 'friendly':
+          adjustedPitch += isExp ? 0.15 : 0.08;
+          adjustedRate += isExp ? 0.1 : 0.04;
+          break;
+        case 'excited':
+          adjustedPitch += isExp ? 0.25 : 0.15;
+          adjustedRate += isExp ? 0.2 : 0.1;
+          break;
+        case 'calm':
+          adjustedPitch -= isExp ? 0.12 : 0.06;
+          adjustedRate -= isExp ? 0.18 : 0.1;
+          break;
+        case 'empathetic':
+          adjustedPitch += isSub ? 0.02 : 0.05;
+          adjustedRate -= 0.08;
+          break;
+        case 'confident':
+          adjustedPitch -= 0.04;
+          adjustedRate += 0.05;
+          break;
+        case 'storytelling':
+        case 'dramatic':
+          adjustedRate -= 0.08;
+          adjustedPitch += 0.06;
+          break;
+        case 'sad':
+          adjustedPitch -= isExp ? 0.2 : 0.1;
+          adjustedRate -= isExp ? 0.25 : 0.15;
+          break;
+        case 'professional':
+          adjustedRate = 1.0;
+          break;
+      }
+    }
+
+    this.estimatedDuration = this.calculateDuration(text, adjustedRate);
     this.playbackStartTime = performance.now();
 
     if (onStart) onStart(this.estimatedDuration);
@@ -131,8 +180,8 @@ class AudioEngine {
         const utterance = new SpeechSynthesisUtterance(text);
         this.currentUtterance = utterance;
         
-        utterance.rate = Math.max(0.6, Math.min(1.8, rate));
-        utterance.pitch = Math.max(0.6, Math.min(1.4, pitch));
+        utterance.rate = Math.max(0.5, Math.min(1.9, adjustedRate));
+        utterance.pitch = Math.max(0.5, Math.min(1.6, adjustedPitch));
 
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
@@ -337,6 +386,16 @@ class AudioEngine {
       return this.currentAudioElement.duration;
     }
     return this.calculateDuration(text, rate);
+  }
+
+  public downloadAudio(audioUrl: string, filename: string = 'voiceprint-audio.mp3'): void {
+    if (!audioUrl) return;
+    const a = document.createElement('a');
+    a.href = audioUrl;
+    a.download = filename.endsWith('.mp3') ? filename : `${filename}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 }
 

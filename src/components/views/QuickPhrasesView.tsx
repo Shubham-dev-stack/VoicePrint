@@ -7,9 +7,11 @@ import {
   Trash2, 
   ArrowUpRight, 
   MessageSquare,
-  Filter
+  Filter,
+  Copy,
+  Check
 } from 'lucide-react';
-import { QuickPhrase, Language } from '../../types';
+import { QuickPhrase, Language, QuickPhraseCategory } from '../../types';
 
 interface QuickPhrasesViewProps {
   phrases: QuickPhrase[];
@@ -29,14 +31,23 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // New phrase form state
   const [newText, setNewText] = useState('');
   const [newLanguage, setNewLanguage] = useState<Language>('en');
-  const [newCategory, setNewCategory] = useState<QuickPhrase['category']>('General');
+  const [newCategory, setNewCategory] = useState<QuickPhraseCategory>('Greetings');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const categories = ['All', 'Favorites', 'General', 'Hindi & Hinglish', 'Assistance', 'Work'];
+  const categories = [
+    'All', 
+    'Favorites', 
+    'Greetings', 
+    'Daily Conversation', 
+    'Work & Professional', 
+    'Thank You', 
+    'Reassurance'
+  ];
 
   const filteredPhrases = phrases.filter((phrase) => {
     const matchesSearch = phrase.text.toLowerCase().includes(searchQuery.toLowerCase());
@@ -66,6 +77,12 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
     setIsModalOpen(false);
   };
 
+  const handleCopyPhrase = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const getLanguagePill = (lang: Language) => {
     switch (lang) {
       case 'hi':
@@ -83,10 +100,10 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-navy-900 tracking-tight">
-            Quick Phrases Library
+            Quick Phrases Studio
           </h2>
           <p className="text-sm text-navy-500 mt-1">
-            Access, save, and trigger frequently spoken phrases in your personal voice.
+            Access, save, and trigger frequently spoken phrases in your personal voice and tone.
           </p>
         </div>
 
@@ -129,7 +146,7 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
               onClick={() => setSelectedCategory(cat)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === cat
-                  ? 'bg-brand-600 text-white shadow-xs'
+                  ? 'bg-brand-600 text-white shadow-xs font-bold'
                   : 'bg-surface-warm hover:bg-navy-100 text-navy-600 border border-surface-border'
               }`}
             >
@@ -195,6 +212,15 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
                 </span>
 
                 <div className="flex items-center gap-1.5">
+                  {/* Copy button */}
+                  <button
+                    onClick={() => handleCopyPhrase(phrase.id, phrase.text)}
+                    className="p-1.5 rounded-xl text-navy-400 hover:text-navy-700 hover:bg-surface-warm transition-colors"
+                    title="Copy phrase text"
+                  >
+                    {copiedId === phrase.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  </button>
+
                   <button
                     onClick={() => onUsePhraseInComposer(phrase, true)}
                     className="px-3 py-1.5 rounded-xl bg-brand-50 hover:bg-brand-600 text-brand-700 hover:text-white border border-brand-200 hover:border-transparent font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs"
@@ -268,13 +294,14 @@ export const QuickPhrasesView: React.FC<QuickPhrasesViewProps> = ({
                   <label className="block text-xs font-semibold text-navy-700 mb-1.5">Category</label>
                   <select
                     value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as QuickPhrase['category'])}
+                    onChange={(e) => setNewCategory(e.target.value as QuickPhraseCategory)}
                     className="w-full p-2.5 rounded-xl bg-surface-warm border border-surface-border text-xs text-navy-900 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   >
-                    <option value="General">General</option>
-                    <option value="Hindi & Hinglish">Hindi & Hinglish</option>
-                    <option value="Assistance">Assistance</option>
-                    <option value="Work">Work</option>
+                    <option value="Greetings">Greetings</option>
+                    <option value="Daily Conversation">Daily Conversation</option>
+                    <option value="Work & Professional">Work & Professional</option>
+                    <option value="Thank You">Thank You</option>
+                    <option value="Reassurance">Reassurance</option>
                   </select>
                 </div>
               </div>

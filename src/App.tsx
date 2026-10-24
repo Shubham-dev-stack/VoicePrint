@@ -13,7 +13,10 @@ import {
   Language, 
   QuickPhrase, 
   RecentMessage, 
-  UserVoiceProfile 
+  UserVoiceProfile,
+  EmotionType,
+  EmotionIntensity,
+  MoodPreset
 } from './types';
 import { 
   INITIAL_VOICES, 
@@ -23,6 +26,7 @@ import {
 } from './data/mockData';
 import { demoAudioService } from './services/audioService';
 import { fishAudioService } from './services/fishAudioService';
+import { VoiceComparisonModal } from './components/studio/VoiceComparisonModal';
 
 export function App() {
   // Navigation & UI state
@@ -33,6 +37,11 @@ export function App() {
   // Fish Audio Backend status
   const [isFishAudioConfigured, setIsFishAudioConfigured] = useState(false);
   const [fishAudioModel, setFishAudioModel] = useState('s2.1-pro-free');
+
+  // Emotion Studio State
+  const [selectedEmotion, setSelectedEmotion] = useState<EmotionType>('happy');
+  const [emotionIntensity, setEmotionIntensity] = useState<EmotionIntensity>('balanced');
+  const [isComparisonOpen, setIsComparisonOpen] = useState(false);
 
   // Composer state
   const [composerText, setComposerText] = useState(
@@ -148,7 +157,9 @@ export function App() {
     langToUse: Language = selectedLanguage,
     audioUrl?: string,
     isFishAudio = false,
-    onFinish?: () => void
+    onFinish?: () => void,
+    emotionToUse: EmotionType = selectedEmotion,
+    intensityToUse: EmotionIntensity = emotionIntensity
   ) => {
     setCurrentAudioText(textToSpeak);
     setCurrentAudioUrl(audioUrl);
@@ -162,6 +173,8 @@ export function App() {
       audioUrl: audioUrl,
       rate: playbackRate,
       pitch: userProfile.pitch ? 1 + (userProfile.pitch / 50) * 0.2 : 1.0,
+      emotion: emotionToUse,
+      intensity: intensityToUse,
       onStart: (dur) => {
         setDuration(dur);
         setCurrentTime(0);
@@ -189,9 +202,16 @@ export function App() {
   };
 
   // Generate Voice Action (Calls Fish Audio backend API with fallback)
-  const handleGenerateVoice = async (overrideText?: string, overrideLang?: Language) => {
+  const handleGenerateVoice = async (
+    overrideText?: string, 
+    overrideLang?: Language,
+    overrideEmotion?: EmotionType,
+    overrideIntensity?: EmotionIntensity
+  ) => {
     const textToSpeak = (overrideText !== undefined ? overrideText : composerText).trim();
     const langToUse = overrideLang || selectedLanguage;
+    const emotionToUse = overrideEmotion || selectedEmotion;
+    const intensityToUse = overrideIntensity || emotionIntensity;
     if (!textToSpeak) return;
 
     setIsGenerating(true);
@@ -200,7 +220,9 @@ export function App() {
     try {
       const res = await fishAudioService.synthesizeSpeech({
         text: textToSpeak,
-        referenceId: selectedVoice.fishAudioReferenceId
+        referenceId: selectedVoice.fishAudioReferenceId,
+        emotion: emotionToUse,
+        intensity: intensityToUse
       });
 
       setIsGenerating(false);
@@ -219,18 +241,20 @@ export function App() {
           durationSeconds: 4,
           audioUrl: res.audioUrl,
           isFishAudio: true,
-          modelUsed: res.model
+          modelUsed: res.model,
+          emotion: emotionToUse,
+          intensity: intensityToUse
         };
 
         setRecentMessages((prev) => [newRecentItem, ...prev.slice(0, 19)]);
         setCurrentlyPlayingMessageId(newRecentItem.id);
 
-        startAudioPlayback(textToSpeak, selectedVoice, langToUse, res.audioUrl, true);
+        startAudioPlayback(textToSpeak, selectedVoice, langToUse, res.audioUrl, true, undefined, emotionToUse, intensityToUse);
 
         addToast(
           'success',
           '⚡ Real Fish Audio Generated!',
-          `Synthesized live with "${selectedVoice.name}" (${res.model || fishAudioModel}).`
+          `Synthesized with "${selectedVoice.name}" • ${emotionToUse.toUpperCase()} (${intensityToUse}).`
         );
       } else {
         // Fallback to browser demo preview if Fish Audio is unavailable
@@ -246,13 +270,15 @@ export function App() {
           voiceName: selectedVoice.name,
           timestamp: 'Just now',
           durationSeconds: estimatedDur,
-          isFishAudio: false
+          isFishAudio: false,
+          emotion: emotionToUse,
+          intensity: intensityToUse
         };
 
         setRecentMessages((prev) => [newRecentItem, ...prev.slice(0, 19)]);
         setCurrentlyPlayingMessageId(newRecentItem.id);
 
-        startAudioPlayback(textToSpeak, selectedVoice, langToUse, undefined, false);
+        startAudioPlayback(textToSpeak, selectedVoice, langToUse, undefined, false, undefined, emotionToUse, intensityToUse);
 
         addToast(
           'info',
@@ -264,9 +290,24 @@ export function App() {
       setIsGenerating(false);
       setIsCurrentAudioFishAudio(false);
       setCurrentAudioUrl(undefined);
-      startAudioPlayback(textToSpeak, selectedVoice, langToUse, undefined, false);
+      startAudioPlayback(textToSpeak, selectedVoice, langToUse, undefined, false, undefined, emotionToUse, intensityToUse);
       addToast('error', 'Generation Notice', 'Falling back to browser speech synthesis.');
     }
+  };
+
+  // Apply a Mood-to-Voice preset
+  const handleSelectPreset = (preset: MoodPreset) => {
+    setSelectedEmotion(preset.emotion);
+    setEmotionIntensity(preset.intensity);
+    setComposerText(preset.sampleText);
+    const matchedVoice = availableVoices.find((v) => v.id === preset.recommendedVoiceId);
+    if (matchedVoice) {
+      setSelectedVoice(matchedVoice);
+      if (matchedVoice.language !== 'multilingual') {
+        setSelectedLanguage(matchedVoice.language);
+      }
+    }
+    addToast('info', `Preset: ${preset.title}`, `Set to ${preset.emotion} (${preset.intensity}) with recommended voice.`);
   };
 
   // Play / Pause toggle
@@ -318,8 +359,23 @@ export function App() {
     const voiceObj = availableVoices.find((v) => v.id === msg.voiceId) || selectedVoice;
     setSelectedVoice(voiceObj);
     setSelectedLanguage(msg.language);
+    if (msg.emotion) {
+      setSelectedEmotion(msg.emotion);
+    }
+    if (msg.intensity) {
+      setEmotionIntensity(msg.intensity);
+    }
     setCurrentAudioUrl(msg.audioUrl);
-    startAudioPlayback(msg.text, voiceObj, msg.language, msg.audioUrl, Boolean(msg.isFishAudio));
+    startAudioPlayback(
+      msg.text, 
+      voiceObj, 
+      msg.language, 
+      msg.audioUrl, 
+      Boolean(msg.isFishAudio),
+      undefined,
+      msg.emotion || selectedEmotion,
+      msg.intensity || emotionIntensity
+    );
   };
 
   // Load message into composer
@@ -500,9 +556,15 @@ export function App() {
               onVoiceChange={setSelectedVoice}
               availableVoices={availableVoices}
               quickPhrases={quickPhrases}
+              selectedEmotion={selectedEmotion}
+              onEmotionChange={setSelectedEmotion}
+              intensity={emotionIntensity}
+              onIntensityChange={setEmotionIntensity}
+              onSelectPreset={handleSelectPreset}
               onGenerateVoice={handleGenerateVoice}
               isGenerating={isGenerating}
               onSaveQuickPhrase={handleSaveQuickPhrase}
+              onOpenComparison={() => setIsComparisonOpen(true)}
               
               isPlaying={isPlaying}
               currentTime={currentTime}
@@ -510,6 +572,7 @@ export function App() {
               progress={progress}
               playbackRate={playbackRate}
               currentAudioText={currentAudioText}
+              currentAudioUrl={currentAudioUrl}
               isFishAudio={isCurrentAudioFishAudio}
               fishAudioModel={fishAudioModel}
               onPlayPause={handlePlayPause}
@@ -574,6 +637,19 @@ export function App() {
           )}
         </main>
       </div>
+
+      {/* A/B Voice & Emotion Comparison Studio Modal */}
+      <VoiceComparisonModal
+        isOpen={isComparisonOpen}
+        onClose={() => setIsComparisonOpen(false)}
+        messageText={composerText}
+        availableVoices={availableVoices}
+        initialVoiceA={selectedVoice}
+        initialEmotionA={selectedEmotion}
+        initialIntensityA={emotionIntensity}
+        isFishAudioConfigured={isFishAudioConfigured}
+        fishAudioModel={fishAudioModel}
+      />
 
       {/* Floating Notifications Toast Container */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
